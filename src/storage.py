@@ -1,5 +1,5 @@
 from tinydb import TinyDB, where
-from BetterJSONStorage import BetterJSONStorage # Enhance storage ability
+from tinydb.storages import JSONStorage
 from pathlib import Path
 
 # Handle reading, writing, and deleting data from a file-based database using TinyDB
@@ -14,7 +14,7 @@ class FileStorage:
         """
         Fetch data from the database by user_id
         """
-        with TinyDB(self.path, access_mode="r+", storage=BetterJSONStorage) as db:
+        with TinyDB(self.path, access_mode="r+", storage=JSONStorage) as db:
             data = db.search(where('user_id') == id) # Search for records where 'user_id' matches the provided id
         return data
 
@@ -22,14 +22,14 @@ class FileStorage:
         """
         Save new data into the database
         """
-        with TinyDB(self.path, access_mode="r+", storage=BetterJSONStorage) as db:
+        with TinyDB(self.path, access_mode="r+", storage=JSONStorage) as db:
             db.insert(data)
 
     def remove(self, id):
         """
         Remove data from the database by user_id
         """
-        with TinyDB(self.path, access_mode="r+", storage=BetterJSONStorage) as db:
+        with TinyDB(self.path, access_mode="r+", storage=JSONStorage) as db:
             db.remove(where('user_id') == id) # Remove all records where 'user_id' matches the provided id
 
 # A wrapper around a specific storage implementation (in this case, FileStorage)
