@@ -1,5 +1,5 @@
 ## Demo
-![Demo]([https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png](https://github.com/GuanRuLai/AI-English-Tutor-Linebot/blob/main/Demo/demo.jpg))
+![Demo](https://github.com/GuanRuLai/AI-English-Tutor-Linebot/blob/main/Demo/demo.jpg)
 
 ## Table of Contents
 - [Introduction](#introduction)
