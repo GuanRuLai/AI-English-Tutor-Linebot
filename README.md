@@ -37,7 +37,7 @@ requirements.txt
 
 ## Project details
 - API used:
-    - OpenAI whisper1 API
+    - OpenAI whisper 1 API
     - OpenAI GPT-4o API
     - Google Cloud Text-to-Speech API
     - Line Developer Messaging API
