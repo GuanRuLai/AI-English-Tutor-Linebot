@@ -35,3 +35,10 @@ To install and run this project, follow these steps:
 To start the Line bot, run the following command:
 ```bash
 python main.py
+```
+
+## License
+This project is licensed under the MIT License - see the [LICENSE](#MIT License) file for details.
+
+## Acknowledgements
+Thanks to [explainthis.io's repository](#https://github.com/TheExplainthis/ChatGPT-AI-English-Tutor)for providing inspiration and valuable resources to refer.
