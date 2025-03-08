@@ -1,3 +1,6 @@
+## Demo
+![Demo](https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png)
+
 ## Table of Contents
 - [Introduction](#introduction)
 - [Features](#features)
