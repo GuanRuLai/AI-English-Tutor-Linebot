@@ -38,7 +38,7 @@ python main.py
 ```
 
 ## License
-This project is licensed under the MIT License - see the [LICENSE](#MIT License) file for details.
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/GuanRuLai/AI-English-Tutor-Linebot/blob/main/LICENSE) file for details.
 
 ## Acknowledgements
-Thanks to [explainthis.io's repository](#https://github.com/TheExplainthis/ChatGPT-AI-English-Tutor)for providing inspiration and valuable resources to refer.
+Thanks to [explainthis.io's repository](https://github.com/TheExplainthis/ChatGPT-AI-English-Tutor)for providing inspiration and valuable resources to refer.
