@@ -18,14 +18,30 @@ AI-English-Tutor-Linebot is a personalized AI English tutor that integrates Open
 ## Project structure
 ```
 ├─ files
+    ├─ .keep
 ├─ src
     ├─ audio.py
     ├─ models.py
     ├─ speech.py
     ├─ storage.py
 ├─ tinydb
+    ├─ .keep
 ├─.gitignore
+├─ LICENSE
+├─ README.md
+├─ main.py
+├─ requirements.txt
 ```
+
+## Project details
+- API used:
+    - OpenAI whisper1 API
+    - OpenAI GPT-4o API
+    - Google Cloud Text-to-Speech API
+    - Line Developer Messaging API
+- Deployment:
+    - [Replit platform](https://replit.com/@132548t/AI-English-Tutor-Linebot?v=1#README.md)
+- CronJob: Since Replit will automatically stop if there are no requests for a period of time, we need to set up a task to send requests regularly to keep the service running. This prevents LINE Bot from stopping due to no requests for a long time.
 
 ## Installation
 To install and run this project, follow these steps:
