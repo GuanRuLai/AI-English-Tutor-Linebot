@@ -94,7 +94,7 @@ def handle_audio_message(event):
         memory.save({
             'user_id': user_id,
             'reflect': content,
-            'created_at': datetime.datetime.now()
+            'created_at': datetime.datetime.now().isoformat()
         })
 
     # Prepare a memory prompt for the latest 5 memories
@@ -120,7 +120,7 @@ def handle_audio_message(event):
     storage.save({
         'user_id': user_id,
         'log': f'student\'s question: {text}, teacher\'s answer: {content}',
-        'created_at': datetime.datetime.now()
+        'created_at': datetime.datetime.now().isoformat()
     })
 
     # Convert the text response to speech (audio)
