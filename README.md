@@ -15,6 +15,18 @@ AI-English-Tutor-Linebot is a personalized AI English tutor that integrates Open
 - Text-to-speech functionality for pronunciation practice.
 - Interactive learning sessions through the Line chat app.
 
+## Project structure
+```
+├─ files
+├─ src
+    ├─ audio.py
+    ├─ models.py
+    ├─ speech.py
+    ├─ storage.py
+├─ tinydb
+├─.gitignore
+```
+
 ## Installation
 To install and run this project, follow these steps:
 
