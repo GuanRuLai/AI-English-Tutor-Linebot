@@ -16,20 +16,20 @@ AI-English-Tutor-Linebot is a personalized AI English tutor that integrates Open
 
 ## Project structure
 ```
-├─ files
-    ├─ .keep
-├─ src
-    ├─ audio.py
-    ├─ models.py
-    ├─ speech.py
-    ├─ storage.py
-├─ tinydb
-    ├─ .keep
-├─.gitignore
-├─ LICENSE
-├─ README.md
-├─ main.py
-├─ requirements.txt
+files/
+  └── .keep
+src/
+  ├── audio.py
+  ├── models.py
+  ├── speech.py
+  ├── storage.py
+tinydb/
+  └── .keep
+.gitignore
+LICENSE
+README.md
+main.py
+requirements.txt
 ```
 
 ## Project details
