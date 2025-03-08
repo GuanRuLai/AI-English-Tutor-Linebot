@@ -1,7 +1,3 @@
-# AI-English-Tutor-Linebot
-
-結合 OpenAI、Google Text-to-Speech 模型製作的個人化 AI 英語家教
-
 ## Table of Contents
 - [Introduction](#introduction)
 - [Features](#features)
