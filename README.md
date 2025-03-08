@@ -8,7 +8,7 @@
 - [Acknowledgements](#acknowledgements)
 
 ## Introduction
-AI-English-Tutor-Linebot is a personalized AI English tutor that integrates OpenAI and Google Text-to-Speech models. This project aims to provide an interactive and efficient way to learn English through a Line bot.
+AI-English-Tutor-Linebot is a personalized AI English tutor that integrates OpenAI and Google Text-to-Speech models. This project aims to provide an interactive and efficient way to learn English through a Line bot. This project uses multiple APIs to create a personalized AI English tutor. The teacher will record the students' learning status, regularly reflect on the students' learning status, and give more appropriate feedback to the students.
 
 ## Features
 - Personalized English tutoring using AI.
