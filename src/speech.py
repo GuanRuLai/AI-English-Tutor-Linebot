@@ -1,6 +1,7 @@
 import os
 from google.cloud import texttospeech
 from google.oauth2.service_account import Credentials\
+import re
 
 # Use Google Text-To-Speech to generate audio
 class Speech():
@@ -22,11 +23,22 @@ class Speech():
         })
         self.client = texttospeech.TextToSpeechClient(credentials=credentials)
 
+    def clean_text(self, text):
+        """
+        Remove symbols that may affect speech synthesis
+        """
+        # Remove ** or * symbols
+        text = re.sub(r'\*\*|\*', '', text)
+        # Remove Markdown link format [text](url)
+        text = re.sub(r'\[.*?\]\(.*?\)', '', text)
+        return text
+    
     def text_to_speech(self, text, voice_name, translate_language, audio_path):
         """
         Use Google Text-To-Speech to generate audio content
         """
-        synthesis_input = texttospeech.SynthesisInput(text=text)
+        cleaned_text = self.clean_text(text)
+        synthesis_input = texttospeech.SynthesisInput(text=cleaned_text)
 
         # Define the voice selection parameters (name and language)
         voice = texttospeech.VoiceSelectionParams(
