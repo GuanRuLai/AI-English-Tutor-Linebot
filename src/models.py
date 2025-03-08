@@ -31,7 +31,6 @@ class OpenAIModel:
         """
         Use whisper to generate audio transcriptions(speech-to-text)
         """
-        with open(file_path, 'rb') as f:
-            audio_file = f.read()
-            response = self.client.audio.transcriptions.create(model_engine, audio_file)
+        with open(file_path, 'rb') as audio_file:
+            response = self.client.audio.transcriptions.create(model=model_engine, file=audio_file)
         return response.text
