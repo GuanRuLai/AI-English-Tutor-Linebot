@@ -36,6 +36,7 @@ requirements.txt
 ```
 
 ## Project details
+- Use Virtualenv while developing.
 - API used:
     - OpenAI whisper 1 API
     - OpenAI GPT-4o API
