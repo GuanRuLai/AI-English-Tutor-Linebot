@@ -3,95 +3,87 @@ from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import (
-    MessageEvent, 
-    TextSendMessage, 
+    MessageEvent,
     TextMessage,
-    AudioMessage, 
-    AudioSendMessage
+    TextSendMessage,
+    AudioMessage,
+    AudioSendMessage,
 )
 from src.audio import audio
 from src.models import OpenAIModel
 from src.speech import Speech
 from src.storage import Storage, FileStorage
-from src.profile import ProfileManager 
+from src.profile import ProfileManager
 
 import datetime
 import math
 import os
 import uuid
 
-# Load environment variables from .env file
 load_dotenv()
 
-# Initialize Flask app with static folder configuration for audio files
-app = Flask(__name__, static_url_path='/audio', static_folder='files/')
+app           = Flask(__name__, static_url_path="/audio", static_folder="files/")
+model         = OpenAIModel(os.getenv("OPENAI_API_KEY"))
+line_bot_api  = LineBotApi(os.getenv("LINE_CHANNEL_ACCESS_TOKEN"))
+handler       = WebhookHandler(os.getenv("LINE_CHANNEL_SECRET"))
+speech        = Speech()
 
-# Initialize OpenAI model, LINE bot API, and webhook handler
-model = OpenAIModel(os.getenv('OPENAI_API_KEY'))
-line_bot_api = LineBotApi(os.getenv('LINE_CHANNEL_ACCESS_TOKEN'))
-handler = WebhookHandler(os.getenv('LINE_CHANNEL_SECRET'))
-
-# Initialize Speech and Storage instances
-speech = Speech()
-storage = None
-memory = None
-
-# tinydb 資料庫
+# TinyDB
 log_storage    = Storage(FileStorage("tinydb/file.db"))
 memory_storage = Storage(FileStorage("tinydb/reflect.db"))
-profile_mgr    = ProfileManager("tinydb/profile.db")      
+profile_mgr    = ProfileManager("tinydb/profile.db")
 
-# Set configurations
-CHAT_MODEL = os.getenv('CHAT_COMPLETION_MODEL', 'gpt-4o')
-AUDIO_MODEL = os.getenv('AUDIO_MODEL_ENGINE', 'whisper-1')
-SERVER_URL = os.getenv('SERVER_URL', None)
-MAX_TOKENS = int(os.getenv('MAX_RESPONSE_TOKENS', 300)) 
+# Config
+CHAT_MODEL  = os.getenv("CHAT_COMPLETION_MODEL", "gpt-4o")
+AUDIO_MODEL = os.getenv("AUDIO_MODEL_ENGINE",  "whisper-1")
+SERVER_URL  = os.getenv("SERVER_URL")
+MAX_TOKENS  = int(os.getenv("MAX_RESPONSE_TOKENS", 300))
 
-@app.route('/callback', methods=['POST'])
-def callback():
-    """
-    Webhook check endpoint for receiving LINE events
-    """
-    signature = request.headers['X-Line-Signature'] # Get LINE signature from headers
-    body = request.get_data(as_text=True) # Get request body as text
-    app.logger.info('Request body: ' + body)
 
-    try:
-        handler.handle(body, signature) # Handle the webhook with the signature and body
-    except InvalidSignatureError:
-        print('Invalid signature. Please check your channel access token/channel secret.')
-        abort(400) # Abort if signature is invalid
-    return 'OK'
-
-@handler.add(MessageEvent, message=TextMessage)
-def handle_text(event):
-    text = event.message.text.strip()
-    user_id = event.source.user_id
-
-    # 收集個人資料，未完成則直接 return
-    if not profile_mgr.ensure_profile(line_bot_api, event, text):
-        return
-
-    profile = profile_mgr.get(user_id) or {}
-    memories = memory_storage.get(user_id)[-5:] if memory_storage.get(user_id) else []
+def build_chat_messages(profile: dict, student_text: str, memories: list[str]) -> list[dict]:
     mem_prompt = f"This is a record of what you have done for the student in the past: {memories}" if memories else ""
-
-    messages = [
+    return [
         {
             "role": "system",
             "content": (
                 "You are an American English teacher currently living in Taiwan, "
-                f"proficient in both English and Chinese.\n"
+                "proficient in both English and Chinese. You know how to correct "
+                "students' grammatical mistakes and guide them to improve their English proficiency.\n"
                 f"Student profile -> Occupation: {profile.get('occupation','?')}, "
                 f"Age: {profile.get('age','?')}, Need: {profile.get('need','?')}."
             ),
         },
         {
             "role": "user",
-            "content": f"{mem_prompt}\nStudent says: \"{text}\"\n\nAnswer in <=200 words.",
+            f"content": f"{mem_prompt}\nStudent says: \"{student_text}\"\n\nAnswer in <={MAX_TOKENS} words.",
         },
     ]
-    _, reply = model.chat_completion(messages, CHAT_MODEL, max_tokens=MAX_TOKENS)
+
+@app.route("/callback", methods=["POST"])
+def callback():
+    signature = request.headers["X-Line-Signature"]
+    body      = request.get_data(as_text=True)
+    try:
+        handler.handle(body, signature)
+    except InvalidSignatureError:
+        abort(400)
+    return "OK"
+
+@handler.add(MessageEvent, message=TextMessage)
+def handle_text(event):
+    text    = event.message.text.strip()
+    user_id = event.source.user_id
+
+    # 收集個人資料（未完成會自動回覆問題並 return）
+    if not profile_mgr.ensure_profile(line_bot_api, event, text):
+        return
+
+    # 取最新 profile / memories
+    profile  = profile_mgr.get(user_id) or {}
+    memories = memory_storage.get(user_id)[-5:] if memory_storage.get(user_id) else []
+
+    messages = build_chat_messages(profile, text, memories)
+    _, reply = model.chat_completion(messages, CHAT_MODEL)
 
     log_storage.save(
         {
@@ -103,114 +95,85 @@ def handle_text(event):
     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
 
 @handler.add(MessageEvent, message=AudioMessage)
-def handle_audio_message(event):
-    """
-    Handle Audio Message event from LINE
-    """
-    user_id = event.source.user_id # Get user ID
-    audio_content = line_bot_api.get_message_content(event.message.id) # Fetch audio content
-    input_audio_path = f'{str(uuid.uuid4())}.m4a' # Generate unique filename for audio
+def handle_audio(event):
+    user_id = event.source.user_id
 
-    # Save the audio content into a file
-    with open(input_audio_path, 'wb') as fd:
-        for chunk in audio_content.iter_content():
-            fd.write(chunk)
+    # 收集個人資料（未完成會提示用文字回答）
+    if not profile_mgr.ensure_profile(line_bot_api, event):
+        return
 
-    # Use OpenAI whisper model to transcribe the audio to text
-    text = model.audio_transcriptions(input_audio_path, AUDIO_MODEL)
+    # 1. 下載 & Whisper 轉錄
+    in_path = f"{uuid.uuid4()}.m4a"
+    content = line_bot_api.get_message_content(event.message.id)
+    with open(in_path, "wb") as f:
+        for chunk in content.iter_content():
+            f.write(chunk)
+    text = model.audio_transcriptions(in_path, AUDIO_MODEL)
 
-    # Get user conversation history from storage
-    history = storage.get(user_id)
+    # 2. 每 10 則做教師反思
+    history = log_storage.get(user_id)
+    if history and len(history) % 10 == 0:
+        hist10 = history[-10:]
+        msgs = [
+            {
+                "role": "system",
+                "content": "You are now an experienced English teacher who knows how to guide students, summarize and verify their learning situations, and set goals for them.",
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Regarding the previous 10 conversations with the student: {hist10}\n"
+                    "Please reflect on the following:\n"
+                    "1. At which stage and level are the students' questions regarding learning English?\n"
+                    "2. Are the answers given by the teacher really helpful to the student?\n"
+                    "3. If you were the teacher, how would you modify your responses to better assist the student?"
+                ),
+            },
+        ]
+        _, reflection = model.chat_completion(msgs, CHAT_MODEL)
+        memory_storage.save(
+            {"user_id": user_id, "reflect": reflection, "created_at": datetime.datetime.now().isoformat()}
+        )
 
-    # If history length is a multiple of 10, reflect on the last 10 conversations.
-    if len(history) % 10 == 0:
-        messages = [{
-            'role': 'system',
-            'content': "You are now an experienced English teacher who knows how to guide students, summarize and verify their learning situations, and set goals for them."
-        }, {
-            'role': 'user',
-            'content': f"""
-            Regarding the previous 10 conversations with the student: {history[-10:]}
+    # 3. 產生教師回覆
+    profile  = profile_mgr.get(user_id) or {}
+    memories = memory_storage.get(user_id)[-5:] if memory_storage.get(user_id) else []
+    messages = build_chat_messages(profile, text, memories)
+    _, reply = model.chat_completion(messages, CHAT_MODEL)
 
-            Please reflect on the following:
-            1. At which stage and level are the students' questions regarding learning English?
-            2. Are the answers given by the teacher really helpful to the student?
-            3. If you were the teacher, how would you modify your responses to better assist the student?
-            """
-        }]
+    log_storage.save(
+        {
+            "user_id": user_id,
+            "log": f"student: {text} | teacher: {reply}",
+            "created_at": datetime.datetime.now().isoformat(),
+        }
+    )
 
-        # Get the reflection and improvements
-        _, content = model.chat_completion(messages, CHAT_MODEL)
-        memory.save({
-            'user_id': user_id,
-            'reflect': content,
-            'created_at': datetime.datetime.now().isoformat()
-        })
+    # 4. TTS & 傳送
+    tmp_mp3 = f"{uuid.uuid4()}.mp3"
+    speech.text_to_speech(reply, "en-US-Studio-O", "en-US", tmp_mp3)
 
-    # Prepare a memory prompt for the latest 5 memories
-    memory_prompt = ''
-    memories = memory.get(user_id)[-5:]
-    if len(memories) > 0:
-        memory_prompt = f'This is a record of what you have done for the student in the past: {memories}'
+    out_name = f"{uuid.uuid4()}.m4a"
+    out_path = f"files/{out_name}"
+    audio.convert_to_aac(tmp_mp3, out_path)
+    duration = audio.get_audio_duration(tmp_mp3)
+    audio_url = f"{SERVER_URL}/audio/{out_name}"
 
-    # Construct messages for the model to generate response
-    messages = [{
-        'role': 'system',
-        'content': "You are an American English teacher currently living in Taiwan, proficient in both English and Chinese. You know how to correct students' grammatical mistakes and guide them to improve their English proficiency."
-    }, {
-        'role': 'user',
-        'content': f"""
-        {memory_prompt}
-        And now, the student's question here: '''{text}''' \n\n please answer with specific and actionable advice. Please reply in English directly whether the student asks in English or Chinese, without the need for formalities or repeating his question, at most 200 words'
-        """
-    }]
+    for p in (in_path, tmp_mp3):
+        if os.path.exists(p):
+            os.remove(p)
 
-    # Get the response
-    _, content = model.chat_completion(messages, CHAT_MODEL)
-    storage.save({
-        'user_id': user_id,
-        'log': f'student\'s question: {text}, teacher\'s answer: {content}',
-        'created_at': datetime.datetime.now().isoformat()
-    })
-
-    # Convert the text response to speech (audio)
-    output_audio_path = f'{str(uuid.uuid4())}.mp3' # Generate unique filename for audio
-    speech.text_to_speech(content, 'en-US-Studio-O', 'en-US', output_audio_path)
-
-    # Convert the generated MP3 file to M4A format for LINE compatibility
-    audio_name = f'{str(uuid.uuid4())}.m4a' # Generate unique filename for audio
-    response_audio_path = f'files/{audio_name}'
-    audio.convert_to_aac(output_audio_path, response_audio_path)
-
-    # Get the duration of the audio
-    duration = audio.get_audio_duration(output_audio_path)
-    audio_url = f'{SERVER_URL}/audio/{audio_name}'
-
-    # Clean up temporary audio files
-    if input_audio_path in os.listdir('./'):
-        os.remove(input_audio_path)
-    if output_audio_path in os.listdir('./'):
-        os.remove(output_audio_path)
-
-    # Reply to the user with audio and text response
     line_bot_api.reply_message(
         event.reply_token,
         [
-            AudioSendMessage(original_content_url=audio_url, duration=math.ceil(duration*1000)),
-            TextSendMessage(text=f'{content}')
-        ]
+            AudioSendMessage(original_content_url=audio_url, duration=math.ceil(duration * 1000)),
+            TextSendMessage(text=reply),
+        ],
     )
 
-# Basic route for home page
-@app.route("/", methods=['GET'])
+@app.route("/", methods=["GET"])
 def home():
-    return 'Hello World!'
+    return "Hello World!"
 
-# Run the Flask app
-if __name__ == '__main__':
-    # Initialize storage for user data and memories
-    storage = Storage(FileStorage('tinydb/file.db'))
-    memory = Storage(FileStorage('tinydb/reflect.db'))
-    profile_mgr = ProfileManager("tinydb/profile.db")
-
-    app.run(host='0.0.0.0', port=8080)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8080)

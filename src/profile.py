@@ -25,6 +25,14 @@ class ProfileManager:
         self, user_id: str, field: str, value: str, next_state: str | None
     ) -> None:
         profile = self.get(user_id) or {"state": "ask_occupation"}
+
+        # 取出文件後先複製成一般 dict，並移除 doc_id 以免重複
+        raw = self.get(user_id) or {}
+        profile = dict(raw)             # 解除 TinyDB Document
+        profile.pop("doc_id", None)     # 移除內建欄位
+        if not profile:
+            profile["state"] = "ask_occupation"
+
         profile[field] = value
         profile["state"] = next_state
         if next_state is None:  # 完成最後一步
@@ -49,7 +57,7 @@ class ProfileManager:
             api.reply_message(
                 event.reply_token,
                 TextSendMessage(
-                    text="嗨！我是你的AI英語導師\n首先，是否可以先請問您的**職業**呢?"
+                    text="Hi! I'm your AI English tutor.\nFirst, may I know your **occupation**?"
                 ),
             )
             return False
@@ -60,7 +68,7 @@ class ProfileManager:
             if st == "ask_occupation":
                 self._update_step(user_id, "occupation", incoming_text, "ask_age")
                 api.reply_message(
-                    event.reply_token, TextSendMessage(text="太棒了，謝謝您！請問您的歲數是?")
+                    event.reply_token, TextSendMessage(text="Great, thanks! How old are you?")
                 )
                 return False
 
@@ -68,7 +76,7 @@ class ProfileManager:
                 self._update_step(user_id, "age", incoming_text, "ask_need")
                 api.reply_message(
                     event.reply_token,
-                    TextSendMessage(text="收到！ 最後，您學習英文的主要目的是?"),
+                    TextSendMessage(text="Got it. Finally, what's your main reason or goal for learning English?"),
                 )
                 return False
 
@@ -76,7 +84,7 @@ class ProfileManager:
                 self._update_step(user_id, "need", incoming_text, None)
                 api.reply_message(
                     event.reply_token,
-                    TextSendMessage(text="完成了！ 您可以隨時傳給我語音或文字訊息✨"),
+                    TextSendMessage(text="All set! Feel free to send me a voice or text question any time ✨"),
                 )
                 return False
 

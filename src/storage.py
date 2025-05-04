@@ -1,47 +1,49 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
 from tinydb import TinyDB, where
 from tinydb.storages import JSONStorage
-from pathlib import Path
 
-# Handle reading, writing, and deleting data from a file-based database using TinyDB
+class UTF8JSONStorage(JSONStorage):
+    """TinyDB JSONStorage 但 _dump() 強制 ensure_ascii=False"""
+
+    def _dump(self, obj: dict) -> str:  # type: ignore[override]
+        return json.dumps(
+            obj,
+            indent=4,
+            sort_keys=False,
+            ensure_ascii=False, 
+        )
+    
 class FileStorage:
-    def __init__(self, file_name):
-        """
-        Initialize the file storage with the provided file path
-        """
+
+    def __init__(self, file_name: str | Path):
         self.path = Path(file_name)
+        # 確保目錄存在，避免 FileNotFoundError
+        self.path.parent.mkdir(parents=True, exist_ok=True)
 
-    def get(self, id):
-        """
-        Fetch data from the database by user_id
-        """
-        with TinyDB(self.path, access_mode="r+", storage=JSONStorage) as db:
-            data = db.search(where('user_id') == id) # Search for records where 'user_id' matches the provided id
-        return data
+    def get(self, user_id: str):
+        with TinyDB(self.path, access_mode="r+", storage=UTF8JSONStorage) as db:
+            return db.search(where("user_id") == user_id)
 
-    def save(self, data):
-        """
-        Save new data into the database
-        """
-        with TinyDB(self.path, access_mode="r+", storage=JSONStorage) as db:
+    def save(self, data: dict):
+        with TinyDB(self.path, access_mode="r+", storage=UTF8JSONStorage) as db:
             db.insert(data)
 
-    def remove(self, id):
-        """
-        Remove data from the database by user_id
-        """
-        with TinyDB(self.path, access_mode="r+", storage=JSONStorage) as db:
-            db.remove(where('user_id') == id) # Remove all records where 'user_id' matches the provided id
+    def remove(self, user_id: str):
+        with TinyDB(self.path, access_mode="r+", storage=UTF8JSONStorage) as db:
+            db.remove(where("user_id") == user_id)
 
-# A wrapper around a specific storage implementation (in this case, FileStorage)
 class Storage:
-    def __init__(self, storage):
+    def __init__(self, storage: FileStorage):
         self.storage = storage
 
-    def get(self, id):
-        return self.storage.get(id)
+    def get(self, user_id: str):
+        return self.storage.get(user_id)
 
-    def save(self, data):
+    def save(self, data: dict):
         self.storage.save(data)
 
-    def remove(self, id):
-        self.storage.remove(id)
+    def remove(self, user_id: str):
+        self.storage.remove(user_id)
