@@ -2,11 +2,14 @@
 ![Demo](https://github.com/GuanRuLai/AI-English-Tutor-Linebot/blob/main/Demo/Demo.jpg)
 
 ## Table of Contents
+- [Demo](#demo)
+- [Table of Contents](#table-of-contents)
 - [Introduction](#introduction)
 - [Features](#features)
+- [Project structure](#project-structure)
+- [Project details](#project-details)
 - [Installation](#installation)
 - [Usage](#usage)
-- [Contributing](#contributing)
 - [License](#license)
 - [Acknowledgements](#acknowledgements)
 
@@ -16,6 +19,7 @@ AI-English-Tutor-Linebot is a personalized AI English tutor that integrates Open
 - Personalized English tutoring using AI.
 - Text-to-speech functionality for pronunciation practice.
 - Interactive learning sessions through the Line chat app.
+- Collecting data of users when interacting with our application.
 
 ## Project structure
 ```

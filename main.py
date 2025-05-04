@@ -2,12 +2,18 @@ from dotenv import load_dotenv
 from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
-from linebot.models import MessageEvent, TextSendMessage, AudioMessage, AudioSendMessage
-
+from linebot.models import (
+    MessageEvent, 
+    TextSendMessage, 
+    TextMessage,
+    AudioMessage, 
+    AudioSendMessage
+)
 from src.audio import audio
 from src.models import OpenAIModel
 from src.speech import Speech
 from src.storage import Storage, FileStorage
+from src.profile import ProfileManager 
 
 import datetime
 import math
@@ -30,10 +36,16 @@ speech = Speech()
 storage = None
 memory = None
 
+# tinydb 資料庫
+log_storage    = Storage(FileStorage("tinydb/file.db"))
+memory_storage = Storage(FileStorage("tinydb/reflect.db"))
+profile_mgr    = ProfileManager("tinydb/profile.db")      
+
 # Set configurations
 CHAT_MODEL = os.getenv('CHAT_COMPLETION_MODEL', 'gpt-4o')
 AUDIO_MODEL = os.getenv('AUDIO_MODEL_ENGINE', 'whisper-1')
 SERVER_URL = os.getenv('SERVER_URL', None)
+MAX_TOKENS = int(os.getenv('MAX_RESPONSE_TOKENS', 300)) 
 
 @app.route('/callback', methods=['POST'])
 def callback():
@@ -51,6 +63,44 @@ def callback():
         abort(400) # Abort if signature is invalid
     return 'OK'
 
+@handler.add(MessageEvent, message=TextMessage)
+def handle_text(event):
+    text = event.message.text.strip()
+    user_id = event.source.user_id
+
+    # 收集個人資料，未完成則直接 return
+    if not profile_mgr.ensure_profile(line_bot_api, event, text):
+        return
+
+    profile = profile_mgr.get(user_id) or {}
+    memories = memory_storage.get(user_id)[-5:] if memory_storage.get(user_id) else []
+    mem_prompt = f"This is a record of what you have done for the student in the past: {memories}" if memories else ""
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are an American English teacher currently living in Taiwan, "
+                f"proficient in both English and Chinese.\n"
+                f"Student profile -> Occupation: {profile.get('occupation','?')}, "
+                f"Age: {profile.get('age','?')}, Need: {profile.get('need','?')}."
+            ),
+        },
+        {
+            "role": "user",
+            "content": f"{mem_prompt}\nStudent says: \"{text}\"\n\nAnswer in <=200 words.",
+        },
+    ]
+    _, reply = model.chat_completion(messages, CHAT_MODEL, max_tokens=MAX_TOKENS)
+
+    log_storage.save(
+        {
+            "user_id": user_id,
+            "log": f"student: {text} | teacher: {reply}",
+            "created_at": datetime.datetime.now().isoformat(),
+        }
+    )
+    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
 
 @handler.add(MessageEvent, message=AudioMessage)
 def handle_audio_message(event):
@@ -161,5 +211,6 @@ if __name__ == '__main__':
     # Initialize storage for user data and memories
     storage = Storage(FileStorage('tinydb/file.db'))
     memory = Storage(FileStorage('tinydb/reflect.db'))
+    profile_mgr = ProfileManager("tinydb/profile.db")
 
     app.run(host='0.0.0.0', port=8080)
