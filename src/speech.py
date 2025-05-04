@@ -1,6 +1,6 @@
 import os
 from google.cloud import texttospeech
-from google.oauth2.service_account import Credentials\
+from google.oauth2.service_account import Credentials
 import re
 
 # Use Google Text-To-Speech to generate audio
